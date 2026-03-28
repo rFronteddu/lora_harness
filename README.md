@@ -64,7 +64,7 @@ SLEEP_S=5
 ```
 
 ### Meshtastic
-Meshtastic firmware is very unstable, I configure things int he following order
+Meshtastic firmware is very unstable, I configured things in the following order
 * Setup all lora configurations
 * setup the mqtt channel in all nodes
   * configure publisher downlink from mqtt channel
