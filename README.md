@@ -1,5 +1,5 @@
 # lora_harness
-This harness will work with meshtastic and with the a custom device to generate messages and harvests stats.
+This harness will work with meshtastic and with other LoRa based firmware to generate messages and harvests stats.
 
 ```mermaid
 sequenceDiagram
