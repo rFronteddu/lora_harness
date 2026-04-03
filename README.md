@@ -2,38 +2,76 @@
 This harness will work with meshtastic and with other LoRa based firmware to generate messages and harvests stats.
 
 ```mermaid
-sequenceDiagram
-    participant H as Python Harness (Sender)
-    participant B as MQTT Broker
-    participant M as Meshtastic Mesh (Nodes)
-    participant R as Python Harness (Receiver)
-    participant CSV as CSV Writer
+flowchart TD
 
-    Note over H: Loop from 1 to TOTAL_MESSAGES
+%% -------------------------
+%% Program Start
+%% -------------------------
 
-    H->>H: Generate msg_id & padding
-    H->>H: sent_messages[msg_id] = time.time()
+A[Program Start] --> B[Load .env configuration]
+B --> C[Initialize MQTT Client]
+C --> D[Connect to Broker]
+D --> E[MQTT loop_start]
+E --> F{MODE}
 
-    H->>B: Publish to SRC_TOPIC (JSON)
-    B->>M: Forward to Mesh Gateway
+%% -------------------------
+%% Harness Mode
+%% -------------------------
 
-    Note over M: LoRa transmission
+F -->|harness| H1[send_messages()]
+H1 --> H2[Generate harness message\nmsg_id,NODE_ID,padding]
+H2 --> H3{PROTOCOL}
 
-    M-->>B: Node replies (JSON)
+H3 -->|meshtastic| H4[Publish JSON to\nMESHTASTIC MQTT topic]
+H3 -->|lrf| H5[Publish raw harness message\nto LRF MQTT topic]
 
-    B->>R: Message received (on_message)
-    R->>R: arrival_time = time.time()
-    R->>R: Extract msg_id & node_id
+H4 --> H6[Store sent_messages[msg_id]]
+H5 --> H6
 
-    alt msg_id exists in sent_messages
-        R->>R: Store arrival_time in received_messages
-        Note right of R: Latency = arrival - sent
-    end
+H6 --> H7[Wait for responses]
+H7 --> H8[process_message()]
+H8 --> H9[save_receive_stat()]
+H9 --> H10[write_results() → CSV files]
 
-    Note over R: Wait 5 seconds
+%% -------------------------
+%% Sender Mode
+%% -------------------------
 
-    R->>CSV: Calculate stats (min/max/avg)
-    CSV-->>R: mqtt_results.csv
+F -->|sender| S1[Subscribe to LRF sender topic]
+S1 --> S2[MQTT on_message]
+S2 --> S3[process_message()]
+S3 --> S4{PROTOCOL}
+
+S4 -->|lrf| S5[send_lrf_multicast()]
+S5 --> S6[UDP Multicast Packet]
+
+%% -------------------------
+%% Receiver Mode
+%% -------------------------
+
+F -->|receiver| R1[lrf_receive()]
+R1 --> R2[Listen UDP multicast socket]
+R2 --> R3[Receive multicast packet]
+R3 --> R4[Parse harness message]
+R4 --> R5[Create stat JSON]
+R5 --> R6[Publish stat to MQTT topic]
+
+%% -------------------------
+%% Meshtastic Receive Path
+%% -------------------------
+
+MQTT[(MQTT Broker)]
+MQTT --> M1[on_message()]
+M1 --> M2[process_message()]
+M2 --> M3[Parse Meshtastic JSON payload]
+M3 --> M4[save_receive_stat()]
+
+%% -------------------------
+%% Multicast Network
+%% -------------------------
+
+S6 --> NET[(LRF Multicast Network)]
+NET --> R2
 ```
 
 ## Setup

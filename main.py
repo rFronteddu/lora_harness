@@ -89,7 +89,7 @@ def process_message(msg):
             sender_id = data["sender_id"]
             rcvr_id = data["receiver_id"]
             msg_size = int(data["size"])
-            arrival_time = float(data["arrival_time"])
+            # arrival_time = float(data["arrival_time"])
             #
             #
             # parts = payload.split(",", 2)
