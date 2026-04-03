@@ -7,49 +7,41 @@ flowchart TD
 %% -------------------------
 %% Program Start
 %% -------------------------
-
 A[Program Start] --> B[Load .env configuration]
 B --> C[Initialize MQTT Client]
 C --> D[Connect to Broker]
 D --> E[MQTT loop_start]
-E --> F{MODE}
+E --> F{MODE?}
 
 %% -------------------------
 %% Harness Mode
 %% -------------------------
-
-F -->|harness| H1[send_messages()]
-H1 --> H2[Generate harness message\nmsg_id,NODE_ID,padding]
-H2 --> H3{PROTOCOL}
-
-H3 -->|meshtastic| H4[Publish JSON to\nMESHTASTIC MQTT topic]
-H3 -->|lrf| H5[Publish raw harness message\nto LRF MQTT topic]
-
-H4 --> H6[Store sent_messages[msg_id]]
+F -->|harness| H1["send_messages()<br>Generate harness message"]
+H1 --> H2[Create msg_id, NODE_ID, padding]
+H2 --> H3{PROTOCOL?}
+H3 -->|meshtastic| H4["Publish JSON to<br>MESHTASTIC MQTT topic"]
+H3 -->|lrf| H5["Publish raw harness message<br>to LRF MQTT topic"]
+H4 --> H6["Store sent_messages[msg_id]"]
 H5 --> H6
-
 H6 --> H7[Wait for responses]
-H7 --> H8[process_message()]
-H8 --> H9[save_receive_stat()]
-H9 --> H10[write_results() → CSV files]
+H7 --> H8["process_message()"]
+H8 --> H9["save_receive_stat()"]
+H9 --> H10["write_results() → CSV files"]
 
 %% -------------------------
 %% Sender Mode
 %% -------------------------
-
 F -->|sender| S1[Subscribe to LRF sender topic]
-S1 --> S2[MQTT on_message]
-S2 --> S3[process_message()]
-S3 --> S4{PROTOCOL}
-
-S4 -->|lrf| S5[send_lrf_multicast()]
+S1 --> S2["MQTT on_message()"]
+S2 --> S3["process_message()"]
+S3 --> S4{PROTOCOL?}
+S4 -->|lrf| S5["send_lrf_multicast()"]
 S5 --> S6[UDP Multicast Packet]
 
 %% -------------------------
 %% Receiver Mode
 %% -------------------------
-
-F -->|receiver| R1[lrf_receive()]
+F -->|receiver| R1["lrf_receive()"]
 R1 --> R2[Listen UDP multicast socket]
 R2 --> R3[Receive multicast packet]
 R3 --> R4[Parse harness message]
@@ -59,17 +51,15 @@ R5 --> R6[Publish stat to MQTT topic]
 %% -------------------------
 %% Meshtastic Receive Path
 %% -------------------------
-
 MQTT[(MQTT Broker)]
-MQTT --> M1[on_message()]
-M1 --> M2[process_message()]
+MQTT --> M1["on_message()"]
+M1 --> M2["process_message()"]
 M2 --> M3[Parse Meshtastic JSON payload]
-M3 --> M4[save_receive_stat()]
+M3 --> M4["save_receive_stat()"]
 
 %% -------------------------
 %% Multicast Network
 %% -------------------------
-
 S6 --> NET[(LRF Multicast Network)]
 NET --> R2
 ```
