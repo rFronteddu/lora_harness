@@ -56,10 +56,9 @@ def process_message(msg):
     arrival_time = time.perf_counter()
 
     try:
-        payload_str = msg.payload.decode()
-        topic_parts = msg.topic.split('/')
-
         if PROTOCOL == "meshtastic":
+            payload_str = msg.payload.decode()
+            topic_parts = msg.topic.split('/')
             rcvr_id = topic_parts[-1]
             data = json.loads(payload_str)
             full_text = data.get("payload", {}).get("text", "")
@@ -75,17 +74,25 @@ def process_message(msg):
             msg_size = len(full_text.encode())
 
         elif PROTOCOL == "lrf":
-            data = json.loads(payload_str)
+            payload = msg.payload.decode().strip()
+            print("Received:", payload)
+            parts = payload.split(",", 2)
+
+            if len(parts) < 3:
+                print("Invalid harness message")
+                return
+
+            msg_id = int(parts[0])
+            sender_id = parts[1]
+            padding = parts[2]
+            msg_size = len(payload.encode())
+
             if MODE == "sender":
                 # Outgoing LRF: send via multicast
-                send_lrf_multicast(payload_str)
+                send_lrf_multicast(payload)
                 return
             else:  # harness or receiver mode
-                msg_id = int(data["msg_id"])
-                sender_id = data["sender_id"]
-                rcvr_id = data.get("receiver_id", NODE_ID)
-                msg_size = int(data.get("size", 0))
-                arrival_time = data.get("arrival_time", arrival_time)
+                rcvr_id = NODE_ID
 
         # Save stats
         save_receive_stat(msg_id, sender_id, rcvr_id, msg_size, arrival_time)
@@ -212,17 +219,18 @@ def lrf_receive():
     """Listen for multicast messages and publish stats to MQTT"""
     group = os.getenv("LRF_MCAST_GROUP")
     port = int(os.getenv("LRF_MCAST_PORT"))
+    iface = os.getenv("LRF_MCAST_IFACE")
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("", port))
-    mreq = struct.pack("4sl", socket.inet_aton(group), socket.INADDR_ANY)
+    mreq = struct.pack("4s4s", socket.inet_aton(group), socket.inet_aton(iface))
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
     print(f"Listening multicast {group}:{port}")
 
     receiver_id = NODE_ID
-    receive_topic = f"{os.getenv("LRF_RCV_TOPIC_ROOT")}/{receiver_id}"
+    receive_topic = f"{os.getenv('LRF_RCV_TOPIC_ROOT')}/{receiver_id}"
 
     while True:
         data, addr = sock.recvfrom(65535)
