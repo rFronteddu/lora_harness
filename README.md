@@ -38,29 +38,44 @@ sequenceDiagram
 
 ## Setup
 ### Project
-In the root folder of this project create a .env file with the following configurations
-* BROKER: Your mqtt broker ex: mqtt.xxx.us
-* PORT: Your mqtt port ex: 1883
-* ROOT_SRC: Publisher will get messages from here
-* ROOT_DST: Receivers will push messages here, MUST BE DIFFERENT FROM ROOT_SRC
-* SRC_NODE_HEX: Hex ID of the publisher node (do not include the !).
-* CHANNEL: Name of the channel configuration actually used by the nodes (I think default channel is 0 and that's why messages are sent to that channel)
-* TOTAL_MESSAGES: How many messages to send
-* TARGET_SIZE= Target size of the payload (note that each protocol may add more data)
-* NODE_ID: Id of the publisher
-* SLEEP_S: Seconds between messages
 
 ```
+# GENERAL
 BROKER=
 PORT=1883
-ROOT_SRC=msh/EU
-ROOT_DST=msh/EU_SNT
-SRC_NODE_HEX=6982912c
-CHANNEL=ShortTurbo
-TOTAL_MESSAGES=100
-TARGET_SIZE=64
 NODE_ID=101
 SLEEP_S=5
+TOTAL_MESSAGES=10
+TARGET_SIZE=64
+
+# PROTOCOL=lrf
+PROTOCOL=meshtastic
+
+MODE=harness
+# MODE=sender
+# MODE=receiver
+
+# -------------------------------------------------------
+# MESHTASTIC
+# -------------------------------------------------------
+# meshtastic looks for messages to send in MESHTASTIC_SNT_TOPIC_ROOT/2/json/mqtt/!NODE_ID_HEX
+MESHTASTIC_SNT_TOPIC_ROOT=msh/EU
+# nodes will publish received messages here
+MESHTASTIC_RCV_TOPIC_ROOT=msh/EU_SNT
+MESHTASTIC_NODE_HEX=6982912c
+MESHTASTIC_CHANNEL=ShortFast
+
+# -------------------------------------------------------
+# LRF
+# -------------------------------------------------------
+LRF_MCAST_GROUP=224.0.0.1
+LRF_MCAST_PORT=12345
+LRF_MCAST_IFACE=192.168.1.10
+
+# the sender will send messages received from LRF_SNT_TOPIC_ROOT/NODE_ID
+LRF_SNT_TOPIC_ROOT=lrf/SEND
+# nodes will receive messages from here
+LRF_RCV_TOPIC_ROOT=lrf/RCV
 ```
 
 ### Meshtastic
