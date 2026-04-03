@@ -56,6 +56,7 @@ def process_message(msg):
     arrival_time = time.perf_counter()
 
     try:
+        # ---------------- MESHTASTIC ----------------
         if PROTOCOL == "meshtastic":
             payload_str = msg.payload.decode()
             topic_parts = msg.topic.split('/')
@@ -73,28 +74,36 @@ def process_message(msg):
             sender_id = parts[1]
             msg_size = len(full_text.encode())
 
+        # ---------------- LRF ----------------
         elif PROTOCOL == "lrf":
-            payload = msg.payload.decode().strip()
+            payload = msg.decode().strip() if isinstance(msg, bytes) else msg.payload.decode().strip()
             print("Received:", payload)
-            parts = payload.split(",", 2)
 
-            if len(parts) < 3:
-                print("Invalid harness message")
-                return
-
-            msg_id = int(parts[0])
-            sender_id = parts[1]
-            padding = parts[2]
-            msg_size = len(payload.encode())
-
+            # If this node is the sender bridge, forward to multicast
             if MODE == "sender":
-                # Outgoing LRF: send via multicast
                 send_lrf_multicast(payload)
                 return
-            else:  # harness or receiver mode
-                rcvr_id = NODE_ID
 
-        # Save stats
+            data = json.loads(payload)
+            msg_id = int(data["msg_id"])
+            sender_id = data["sender_id"]
+            rcvr_id = data["receiver_id"]
+            msg_size = int(data["size"])
+            arrival_time = float(data["arrival_time"])
+            #
+            #
+            # parts = payload.split(",", 2)
+            # if len(parts) < 3:
+            #     print("Invalid harness message")
+            #     return
+            #
+            # msg_id = int(parts[0])
+            # sender_id = parts[1]
+            # padding = parts[2]
+            # msg_size = len(payload.encode())
+            # rcvr_id = NODE_ID
+
+        # ---------------- SAVE STATS ----------------
         save_receive_stat(msg_id, sender_id, rcvr_id, msg_size, arrival_time)
         print(f"[{PROTOCOL}] msg={msg_id} sender={sender_id} rcvr={rcvr_id} size={msg_size}")
 
@@ -131,7 +140,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
         client.subscribe(f"{os.getenv('MESHTASTIC_RCV_TOPIC_ROOT')}/2/json/{os.getenv('MESHTASTIC_CHANNEL')}/+")
     elif PROTOCOL == "lrf":
         if MODE == "harness":
-            client.subscribe(f"{os.getenv('LRF_RCV_TOPIC_ROOT')}")
+            client.subscribe(f"{os.getenv('LRF_RCV_TOPIC_ROOT')}/+")
         elif MODE == "sender":
             client.subscribe(f"{os.getenv('LRF_SNT_TOPIC_ROOT')}/{NODE_ID}")
 
@@ -286,134 +295,3 @@ if __name__ == '__main__':
 
     mqtt_client.loop_stop()
     mqtt_client.disconnect()
-
-#
-#
-# def process_harness_meshtastic_message(msg):
-#     """Process a meshtastic JSON message from MQTT"""
-#     arrival_time = time.perf_counter()
-#     topic_parts = msg.topic.split('/')
-#     rcvr_id = topic_parts[-1]
-#
-#     payload_str = msg.payload.decode()
-#     data = json.loads(payload_str)
-#     full_text = data.get("payload", {}).get("text", "")
-#
-#     print("\n<<< RECEIVED MQTT MESSAGE")
-#     print(f"Topic:{msg.topic}, Payload: {payload_str}", msg.topic)
-#
-#     # process only text messages
-#     if data.get("type") != "text":
-#         return
-#
-#     if not full_text:
-#         return
-#
-#     parts = full_text.split(",", 2)
-#
-#     if len(parts) < 2:
-#         return
-#
-#     msg_id = int(parts[0])
-#     sender_id = parts[1]
-#     msg_size = len(full_text.encode())
-#
-#     print(f"<<<<<< Parsed Message | msg_id={msg_id} | sender={sender_id} | rcvr={rcvr_id} | size={msg_size}")
-#
-#     save_receive_stat(msg_id, sender_id, rcvr_id, msg_size, arrival_time)
-#
-#
-# def process_harness_lrf_message(msg):
-#     """Process a lrf stat JSON  message from MQTT"""
-#     try:
-#         payload_str = msg.payload.decode()
-#         data = json.loads(payload_str)
-#
-#         msg_id = int(data["msg_id"])
-#         sender_id = data["sender_id"]
-#         rcvr_id = data["receiver_id"]
-#         msg_size = int(data.get("size", 0))
-#
-#         # use local arrival time for consistency with meshtastic path
-#         arrival_time = time.perf_counter()
-#
-#         save_receive_stat(msg_id, sender_id, rcvr_id, msg_size, arrival_time)
-#
-#     except Exception as e:
-#         print("Invalid LRF stat message:", e)
-#
-#
-# def process_outgoing_lrf_msg(msg):
-#     """Send msg over multicast through a specific interface"""
-#     payload_str = msg.payload.decode()
-#
-#     group = os.getenv("MCAST_GROUP")
-#     port = int(os.getenv("MCAST_PORT"))
-#     iface = os.getenv("MCAST_IFACE")
-#
-#     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-#
-#     sock.setsockopt(
-#         socket.IPPROTO_IP,
-#         socket.IP_MULTICAST_IF,
-#         socket.inet_aton(iface)
-#     )
-#
-#     sock.sendto(payload_str.encode(), (group, port))
-#
-#     print(f"Multicast sent -> {group}:{port}")
-#
-#
-# def process_lrf_message(msg):
-#     if MODE == "sender":
-#         process_outgoing_lrf_msg(msg)
-#     elif MODE == "harness":
-#         process_harness_lrf_message(msg)
-#
-#
-#
-#
-#
-# # -------------------------------------------------------
-# # SENDER
-# # -------------------------------------------------------
-#
-# def send_messages(client):
-#     print(f"\nSending {TOTAL_MESSAGES} messages")
-#
-#     for msg_id in range(1, TOTAL_MESSAGES + 1):
-#         prefix = f"{msg_id},{NODE_ID},"
-#         padding_needed = TARGET_SIZE - len(prefix)
-#         padding = ''.join(random.choices(string.ascii_letters, k=max(0, padding_needed)))
-#         harness_message = prefix + padding
-#
-#         if PROTOCOL == "meshtastic":
-#             src_node_id_hex = os.getenv("MESHTASTIC_NODE_HEX")
-#             src_node_int = int(src_node_id_hex, 16)
-#             message_data = {"from": src_node_int, "channel": 0, "type": "sendtext", "payload": harness_message}
-#             json_payload = json.dumps(message_data)
-#             client.publish(f"{os.getenv("MESHTASTIC_SNT_TOPIC_ROOT")}/2/json/mqtt/!{src_node_id_hex}", json_payload,
-#                            qos=1)
-#         elif PROTOCOL == "lrf":
-#             client.publish(f"{os.getenv("LRF_SNT_TOPIC_ROOT")}/{NODE_ID}", harness_message, qos=1)
-#
-#         with lock:
-#             sent_messages[msg_id] = {
-#                 "size": len(harness_message),
-#                 "sent_ts": time.perf_counter()
-#             }
-#
-#         print(f">>>>>> SCHEDULED msg_id={msg_id}")
-#         time.sleep(SLEEP_S)
-#
-#
-# # -------------------------------------------------------
-# # RESULTS
-# # -------------------------------------------------------
-#
-#
-#
-#
-# # -------------------------------------------------------
-# # MAIN
-# # -------------------------------------------------------
