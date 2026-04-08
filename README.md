@@ -1,5 +1,5 @@
 # lora_harness
-This harness will work with meshtastic and with other LoRa based firmware to generate messages and harvests stats.
+This harness will work with [Meshtastic](https://meshtastic.org/), [Meshcore](https://meshcore.co.uk/), and lrf to generate messages and harvests stats.
 
 ```mermaid
 flowchart TD
@@ -115,4 +115,17 @@ Meshtastic firmware is very unstable, I configured things in the following order
 * enable wifi
 * enable mqtt connection
 
+```
+Firmware: 2.7.15.567b8ea
+Frequency 779Mhz 
+Modem Preset: Short Turbo
+Maxh transmit power: 10dbm 
+Duty cycle: Overridden
+Encryption: Disabled
+JSON Output enabled
+```
 
+### Meshcore
+
+
+### LRF

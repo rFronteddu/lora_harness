@@ -89,19 +89,6 @@ def process_message(msg):
             sender_id = data["sender_id"]
             rcvr_id = data["receiver_id"]
             msg_size = int(data["size"])
-            # arrival_time = float(data["arrival_time"])
-            #
-            #
-            # parts = payload.split(",", 2)
-            # if len(parts) < 3:
-            #     print("Invalid harness message")
-            #     return
-            #
-            # msg_id = int(parts[0])
-            # sender_id = parts[1]
-            # padding = parts[2]
-            # msg_size = len(payload.encode())
-            # rcvr_id = NODE_ID
 
         # ---------------- SAVE STATS ----------------
         save_receive_stat(msg_id, sender_id, rcvr_id, msg_size, arrival_time)
@@ -277,7 +264,7 @@ if __name__ == '__main__':
     if MODE == "harness":
         send_messages(mqtt_client)
         print("Waiting for responses...")
-        time.sleep(20)
+        time.sleep(5)
         write_results()
     elif MODE == "sender":
         print(f"{MODE} running... press Ctrl+C to exit")
