@@ -1,0 +1,58 @@
+#include <WiFi.h>
+#include <PicoMQTT.h>
+
+// 1. YOUR NETWORK SETTINGS
+const char* ssid     = "NETGEAR11";      // Your home Wi-Fi name
+const char* password = "";  // Your home Wi-Fi password
+
+// 2. HELTEC HOTSPOT SETTINGS (Backup if home Wi-Fi is out)
+const char* ap_ssid  = "Heltec_Broker_Mesh";
+const char* ap_pass  = "meshcore123";
+
+// Initialize the Broker
+PicoMQTT::Server mqtt;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("\n--- Heltec V3 MQTT Broker Starting ---");
+
+  // Start both Station and Access Point modes
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.begin(ssid, password);
+  WiFi.softAP(ap_ssid, ap_pass);
+
+  Serial.println("Attempting to connect to home Wi-Fi...");
+  
+  // Wait up to 10 seconds for home Wi-Fi
+  int counter = 0;
+  while (WiFi.status() != WL_CONNECTED && counter < 20) {
+    delay(500);
+    Serial.print(".");
+    counter++;
+  }
+
+  // Show Connection Status
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[CONNECTED] Home Wi-Fi IP: " + WiFi.localIP().toString());
+  } else {
+    Serial.println("\n[TIMEOUT] Home Wi-Fi failed. Using Hotspot only.");
+  }
+  
+  Serial.println("[ACTIVE] Hotspot IP (Default): " + WiFi.softAPIP().toString());
+
+  // Optional: Print a message to Serial whenever a device publishes
+  mqtt.subscribe("#", [](const char* topic, const char* payload) {
+    Serial.printf("Topic: %s | Message: %s\n", topic, payload);
+  });
+
+  // Start the actual Broker service
+  mqtt.begin();
+  Serial.println("MQTT Broker is now running on Port 1883.");
+}
+
+void loop() {
+  // CRITICAL: This is the loop the compiler was looking for!
+  // It manages all incoming MQTT traffic.
+  mqtt.loop();
+}
