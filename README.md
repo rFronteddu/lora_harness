@@ -69,12 +69,12 @@ NET --> R2
 
 ```
 # GENERAL
-BROKER=
+BROKER=""
 PORT=1883
 NODE_ID=101
-SLEEP_S=5
-TOTAL_MESSAGES=10
-TARGET_SIZE=64
+SLEEP_S=0.05
+TOTAL_MESSAGES=200
+TARGET_SIZE=200
 
 # PROTOCOL=lrf
 PROTOCOL=meshtastic
@@ -88,17 +88,24 @@ MODE=harness
 # -------------------------------------------------------
 # meshtastic looks for messages to send in MESHTASTIC_SNT_TOPIC_ROOT/2/json/mqtt/!NODE_ID_HEX
 MESHTASTIC_SNT_TOPIC_ROOT=msh/EU
-# nodes will publish received messages here
+# receivers will publish received messages here
 MESHTASTIC_RCV_TOPIC_ROOT=msh/EU_SNT
 MESHTASTIC_NODE_HEX=6982912c
-MESHTASTIC_CHANNEL=ShortFast
+MESHTASTIC_CHANNEL=ShortTurbo
+
+# -------------------------------------------------------
+# MESHCORE
+# -------------------------------------------------------
+# meshcore looks for messages to send in
+
+# receivers will publish received messages here
 
 # -------------------------------------------------------
 # LRF
 # -------------------------------------------------------
 LRF_MCAST_GROUP=224.0.0.1
 LRF_MCAST_PORT=12345
-LRF_MCAST_IFACE=192.168.1.10
+LRF_MCAST_IFACE=192.168.12.2
 
 # the sender will send messages received from LRF_SNT_TOPIC_ROOT/NODE_ID
 LRF_SNT_TOPIC_ROOT=lrf/SEND
