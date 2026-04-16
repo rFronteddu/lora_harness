@@ -90,6 +90,37 @@ def process_message(msg):
             rcvr_id = data["receiver_id"]
             msg_size = int(data["size"])
 
+        elif PROTOCOL == "meshcore":
+            payload_str = msg.payload.decode()
+            topic_parts = msg.topic.split('/')
+            # Topic: meshcore_a/message/channel/0 -> rcvr_id is 'a'
+            rcvr_id = topic_parts[0].split('_')[1]
+
+            data = json.loads(payload_str)
+
+            # Extract the nested text field
+            full_text = data.get("payload", {}).get("text", "")
+            if not full_text:
+                print("No full text")
+                return
+
+            parts = full_text.split(",", 2)
+            if len(parts) < 2:
+                print("No len")
+                return
+            if ": " in full_text:
+                # Splitting on ": " once gives us ["NodeA", "3,100,yahb..."]
+                _, actual_csv_data = full_text.split(": ", 1)
+            else:
+                actual_csv_data = full_text
+
+            parts = actual_csv_data.split(",", 2)
+            if len(parts) < 2:
+                return
+
+            msg_id = int(parts[0])  # Should be 3
+            sender_id = parts[1]  # Should be 100
+            msg_size = len(full_text.encode())
         # ---------------- SAVE STATS ----------------
         save_receive_stat(msg_id, sender_id, rcvr_id, msg_size, arrival_time)
         print(f"[{PROTOCOL}] msg={msg_id} sender={sender_id} rcvr={rcvr_id} size={msg_size}")
@@ -130,6 +161,13 @@ def on_connect(client, userdata, flags, rc, properties=None):
             client.subscribe(f"{os.getenv('LRF_RCV_TOPIC_ROOT')}/+")
         elif MODE == "sender":
             client.subscribe(f"{os.getenv('LRF_SNT_TOPIC_ROOT')}/{NODE_ID}")
+    elif PROTOCOL == "meshcore":
+        topics = [(os.getenv('MESHCORE_RCV_TOPIC_ROOT_1'), 0),
+                  (os.getenv('MESHCORE_RCV_TOPIC_ROOT_2'), 0),
+                  (os.getenv('MESHCORE_RCV_TOPIC_ROOT_3'), 0)]
+
+        # topics = [("home/livingroom/temp", 0), ("home/kitchen/temp", 1)]
+        client.subscribe(topics)
 
 def on_message(client, userdata, msg):
     process_message(msg)
@@ -154,6 +192,11 @@ def send_messages(client):
             json_payload = json.dumps(message_data)
             topic = f"{os.getenv('MESHTASTIC_SNT_TOPIC_ROOT')}/2/json/mqtt/!{src_node_id_hex}"
             client.publish(topic, json_payload, qos=1)
+        elif PROTOCOL == "meshcore":
+            topic = f"{os.getenv('MESHCORE_SNT_TOPIC_ROOT')}/command/send_chan_msg"
+            message_data = {"channel": 0, "message": harness_message}
+            json_payload = json.dumps(message_data)
+            client.publish(topic, json_payload, qos=1)
         elif PROTOCOL == "lrf":
             topic = f"{os.getenv('LRF_SNT_TOPIC_ROOT')}/{NODE_ID}"
             client.publish(topic, harness_message, qos=1)
@@ -169,8 +212,8 @@ def send_messages(client):
 # -------------------------------------------------------
 
 def write_results():
-    aggregate_csv_filename = "mqtt_results_aggregate.csv"
-    details_csv_filename = "mqtt_arrivals_details.csv"
+    aggregate_csv_filename = os.getenv("FILE_ROOT") + "_summary.csv"
+    details_csv_filename = os.getenv("FILE_ROOT") + ".csv"
 
     with open(aggregate_csv_filename, mode="w", newline="") as file:
         writer = csv.writer(file)
