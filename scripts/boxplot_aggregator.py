@@ -95,10 +95,11 @@ def plot_log(values, labels, period, receivers, dir):
     plt.figure()
     plt.boxplot(values)
     plt.yscale("log")
-    plt.xticks(range(1, len(labels) + 1), labels, rotation=45)
-    plt.title(f"Latency distribution (period = {period}s, receivers = {receivers})")
-    plt.xlabel("Protocol:Message Size")
-    plt.ylabel("Latency (s)")
+    #plt.title(f"Latency distribution (period = {period}s, receivers = {receivers})")
+    plt.xticks(range(1, len(labels) + 1), labels, rotation=55, fontsize=20)
+    plt.yticks(fontsize=20)
+    #plt.xlabel("Protocol:Message Size")
+    plt.ylabel("Latency (s)", fontsize=18)
     plt.tight_layout()
 
     output_file = os.path.join(
@@ -236,6 +237,10 @@ def main():
         print(f"Processing {filepath}")
         # Assume size is constant per file
         message_size = df["size"].iloc[0]
+        if message_size == 24:
+            message_size = 20
+        if message_size == 160:
+            message_size = 200
         # Only consider msg_id in [1, 100]
         filtered_df = df[(df["msg_id"] >= 1) & (df["msg_id"] <= 100)]
         if filtered_df.empty:
@@ -248,7 +253,7 @@ def main():
         latencies = compute_latency(filtered_df)
 
         scenario_key = (period, receivers)
-        group_key = (protocol, message_size)
+        group_key = (message_size, protocol)
         losses[scenario_key][group_key] += int(num_losses)
         data[scenario_key][group_key].extend(latencies.tolist())
 
@@ -259,8 +264,10 @@ def main():
 
         labels = []
         values = []
-        for (protocol, size), lat_list in sorted(groups.items()):
-            labels.append(f"{protocol}:{size}")
+        for (size, protocol), lat_list in sorted(groups.items()):
+            size_label = "S" if size <= 50 else "M" if size <= 150 else "L"
+            proto_label = "mt" if protocol == "meshtastic" else "mc" if protocol == "meshcore" else protocol
+            labels.append(f"{proto_label}:{size_label}")
             values.append(lat_list)
 
         for mode in ["log", "ylim", "broken"]:
